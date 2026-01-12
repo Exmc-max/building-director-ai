@@ -1,37 +1,59 @@
-from schemas import PlayerObservation, DirectorInstructions
+from schemas import DirectorInstructions
+from state import BehaviorProfile
 
-def determine_directives(obs: PlayerObservation) -> DirectorInstructions:
-    
-    # DEFAULT STATE (The "Control Group")
-    level = "subtle"
-    prob = 0.3
-    cat = "environment"
-    lie = False
+def determine_directives(profile: BehaviorProfile) -> DirectorInstructions:
+    """
+    Director policy:
+    - Observe behavior stability
+    - Apply pressure only when confidence is high
+    - Withdraw intervention as convergence is reached
+    """
 
-    # RULE 1: If player is very logical, challenge them subtly
-    if obs.logic_confidence > 0.7:
-        level = "subtle"
-        prob = 0.8          # High chance, but hard to see
-        cat = "logic"       # Mess with the numbers/rules
-        lie = False         # But don't cheat yet
+    # Default: minimal interference
+    anomaly_level = "subtle"
+    anomaly_probability = 0.0
+    anomaly_category = "environment"
+    lie_allowed = False
 
-    # RULE 2: If player is panicking (low logic, high repetition)
-    if obs.logic_confidence < 0.3 and obs.repetition > 2:
-        level = "aggressive"
-        prob = 1.0          # Force an anomaly
-        cat = "audio"       # Scare them
-        lie = True          # Break the rules to confuse them
+    # --- BEHAVIOR INTERPRETATION ---
+    confident = profile.logic_confidence > 0.7
+    unstable = profile.logic_confidence < 0.4
+    trusting = profile.trust_level > 0.6
+    converged = profile.trust_level > 0.9
 
-    # RULE 3: The Convergence (End Game)
-    if obs.trust_level > 0.9:
-        level = "subtle"
-        prob = 0.0          # Stop anomalies
-        cat = "environment"
-        lie = False
+    # --- MAIN POLICY ---
+
+    # Phase 1: Confident but not yet converged → test gently
+    if confident and not converged:
+        anomaly_level = "subtle"
+        anomaly_probability = 1.0
+        anomaly_category = "logic"
+        lie_allowed = False
+
+    # Phase 2: Unstable but still trusting → restore consistency
+    elif unstable and trusting:
+        anomaly_level = "subtle"
+        anomaly_probability = 0.0
+        anomaly_category = "environment"
+        lie_allowed = False
+
+    # Phase 3: Unstable and untrusting → pressure, but do NOT lie
+    elif unstable and not trusting:
+        anomaly_level = "aggressive"
+        anomaly_probability = 1.0
+        anomaly_category = "audio"
+        lie_allowed = False
+
+    # Phase 4: Convergence → withdraw
+    if converged:
+        anomaly_level = "subtle"
+        anomaly_probability = 0.0
+        anomaly_category = "environment"
+        lie_allowed = False
 
     return DirectorInstructions(
-        anomaly_level=level,
-        anomaly_probability=prob,
-        anomaly_category=cat,
-        lie_allowed=lie
+        anomaly_level=anomaly_level,
+        anomaly_probability=anomaly_probability,
+        anomaly_category=anomaly_category,
+        lie_allowed=lie_allowed
     )

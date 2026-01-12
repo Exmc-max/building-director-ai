@@ -1,15 +1,14 @@
 from pydantic import BaseModel
 
-# INPUT: What Unreal sends to Python (The Observation)
+# INPUT: Raw behavior sent from Unreal
 class PlayerObservation(BaseModel):
-    floor: int
-    logic_confidence: float # 0.0 to 1.0
-    trust_level: float      # 0.0 to 1.0
-    repetition: int         # How many times they did the same thing
+    correct: bool               # Was the last decision correct?
+    repetition: int             # Times the same choice was repeated
+    hesitation: float           # Seconds before making the choice
 
-# OUTPUT: What Python sends back (The Parameters/Intent)
+# OUTPUT: High-level intent returned to Unreal
 class DirectorInstructions(BaseModel):
-    anomaly_level: str       # "subtle", "medium", "aggressive"
-    anomaly_probability: float # 0.0 to 1.0 (Chance of it happening)
-    anomaly_category: str    # "environment", "audio", "logic"
-    lie_allowed: bool        # Can the building cheat?
+    anomaly_level: str          # "subtle", "medium", "aggressive"
+    anomaly_probability: float  # 0.0 to 1.0
+    anomaly_category: str       # "environment", "audio", "logic"
+    lie_allowed: bool           # Is rule-breaking permitted?
